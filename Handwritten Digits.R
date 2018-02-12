@@ -7,7 +7,7 @@ In the other methods, it is possible to play with parameters in the classificati
 rm(list=ls())
 
 ## read data
-train= read.csv("C:/Users/Sareh/Google Drive/PhD/Term 6 - Fall 2018/Statistical Modeling 1/Assignment/HW6/train.csv", header = FALSE )
+train= read.csv("train.csv", header = FALSE )
 
 ### randomely pick 1600 rows
 set.seed(1)
