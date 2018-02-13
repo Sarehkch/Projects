@@ -1,0 +1,94 @@
+
+#required libraries
+library(MASS)
+library(gamlss) #install.packages("gamlss")
+
+#import data
+
+##
+##
+#One Inflated Beta Regression
+##
+
+turnover_data_111417 = read.csv(data, header = TRUE, na.strings = "")
+
+turnover_data_111417$grdspancategories = as.factor(turnover_data_111417$grdspancategories) 
+turnover_data_111417$mlocale = as.factor(turnover_data_111417$mlocale)
+turnover_data_111417$charter = as.factor(turnover_data_111417$charter)
+
+turnover_data_111417<- na.omit(turnover_data_111417)
+turnover_data_111417$campusturnover5yr[turnover_data_111417$campusturnover5yr==0]<- .0001
+
+
+library(ggplot2)
+# slide 4
+hist(turnover_data_111417$campusturnover5yr)
+
+#slide 5  rating vs turnover rate ;  charter vs turnover rate
+plot(y = turnover_data_111417$campusturnover5yr, x =turnover_data_111417$rating)
+plot(y = turnover_data_111417$campusturnover5yr, x =turnover_data_111417$charter)
+
+#slide 6  pwhite vs pblack vs phisp
+x <- turnover_data_111417[, c("campus","pwhite", "pblack", "phisp")]
+x$campus <- as.character(x$campus)
+library(reshape2)
+data<- melt(x)
+ggplot(data,aes(x=value, fill=variable)) + geom_histogram(alpha=0.25)
+ggplot(data,aes(x=variable, y=value, fill=variable)) + geom_boxplot()
+
+# slide 7 pblack vs turnover rate; pwhite vs turnover rate ; phisp vs turnoverate
+p1 <- ggplot(turnover_data_111417) 
+p1 + geom_point(aes(y = campusturnover5yr,x = pblack))
+p1 + geom_point(aes(y = campusturnover5yr, x = pwhite))
+p1 + geom_point(aes(y = campusturnover5yr,x = phisp))
+
+# slide 8 
+p1 + geom_histogram(aes(x=students),col = "white", bins = 30)
+p1 + geom_point(aes(y = campusturnover5yr,x = students))
+
+# Analyze
+turnover_data_111417[,1]=NULL
+
+# The functions BEINF0() and BEINF1() are three parameter beta inflated distributions 
+# allowing zeros or ones only at the response respectively.
+
+gamlss.model <- gamlss(formula =       campusturnover5yr~(.)^2,
+                       sigma.formula = campusturnover5yr~(.)^2, 
+                       nu.formula =    campusturnover5yr~(.)^2, 
+                       tau.formula=    campusturnover5yr~(.)^2,
+                       family=BEINF1, data=turnover_data_111417)
+null <- gamlss(formula =       campusturnover5yr~1,
+               sigma.formula = campusturnover5yr~1, 
+               nu.formula =    campusturnover5yr~1, 
+               tau.formula=    campusturnover5yr~1,
+               family=BEINF1, data=turnover_data_111417)
+
+our_model = stepAIC(gamlss(formula =       campusturnover5yr~(.)^2,
+                           family=BEINF1, data=turnover_data_111417), direction = "backward")
+summary(our_model)
+
+plot(turnover_data_111417$campusturnover5yr, fitted(our_model), xlab = "y-original" , ylab="y-hat" )
+
+mseF = function (a,b) (mean(a-b)^2)
+rmseF = function(error) (sqrt(mean(error^2)))
+(mse = (mseF(turnover_data_111417$campusturnover5yr, fitted(our_model)))^0.5)
+(rmse = rmseF(residuals(our_model)))
+
+plot(fitted(our_model), residuals(our_model))
+
+# For normal distribution
+lm.model <- lm(campusturnover5yr~grdspancategories+peco+plep+students+pwhite+pblack+phisp+pnative+pasian+pspeced+pmobile+mlocale+charter+rating,
+                data=turnover_data_111417)
+lm.model2 <- lm(campusturnover5yr~grdspancategories+peco+plep+students+pwhite+pblack+phisp+pnative+pasian+pspeced+pmobile+mlocale+charter+rating+peco*pblack*phisp + mlocale*pblack + mlocale*phisp,
+               data=turnover_data_111417)
+summary(lm.model)
+summary(lm.model2)
+
+plot(fitted(lm.model2), residuals(our_model))
+
+plot(turnover_data_111417$campusturnover5yr, fitted(lm.model), pch = 19); abline(a=0, b = 1)
+plot(turnover_data_111417$campusturnover5yr, fitted(lm.model2), pch = 19); abline(a=0, b = 1)
+
+(mse.lm = (mseF(turnover_data_111417$campusturnover5yr, lm.model2$fitted))^0.5)
+(rmse.lm = rmseF(residuals(lm.model2)))
+AIC(lm.model2)
